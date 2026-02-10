@@ -214,6 +214,13 @@ The pattern is particularly suited for:
 - **Simulations** — reproducible tick-by-tick execution
 - **AI agent architectures** — each agent as a layer with shared state
 
+## Author
+
+Created by **Anton Emelyanov** — concept, architecture, and implementation of the LAYERS pattern.
+
+- GitHub: [@geniden](https://github.com/geniden)
+- Email: geniden@gmail.com
+
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — Copyright (c) 2026 Anton Emelyanov

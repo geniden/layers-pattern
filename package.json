@@ -20,7 +20,7 @@
     "atomic-commit",
     "websocket"
   ],
-  "author": "",
+  "author": "Anton Emelyanov <geniden@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
