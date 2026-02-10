@@ -24,11 +24,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/geniden/layers-pattern.git"
   },
   "homepage": "http://91.201.40.187:3000/",
   "bugs": {
-    "url": ""
+    "url": "https://github.com/geniden/layers-pattern/issues"
   },
   "dependencies": {
     "ws": "^8.18.0"

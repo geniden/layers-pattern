@@ -52,7 +52,7 @@ LAYERS eliminates race conditions by design. Every tick: snapshot the state, col
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/layers-pattern.git
+git clone https://github.com/geniden/layers-pattern.git
 cd layers-pattern
 
 # Install dependencies
