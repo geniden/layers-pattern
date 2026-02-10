@@ -1,0 +1,36 @@
+{
+  "name": "layers-pattern",
+  "version": "1.0.0",
+  "description": "LAYERS — tick-based architectural pattern for deterministic real-time apps. Includes Apple Rush demo game.",
+  "main": "server/game-server.js",
+  "scripts": {
+    "start": "node server/game-server.js",
+    "test": "node tests/run-all.js"
+  },
+  "keywords": [
+    "layers",
+    "pattern",
+    "architecture",
+    "tick-engine",
+    "deterministic",
+    "real-time",
+    "multiplayer",
+    "game",
+    "state-management",
+    "atomic-commit",
+    "websocket"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "homepage": "http://91.201.40.187:3000/",
+  "bugs": {
+    "url": ""
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

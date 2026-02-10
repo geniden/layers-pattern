@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apple Rush — LAYERS Demo</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════
+       GLOBAL
+       ═══════════════════════════════════════════════════════════ */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0a0a1a;
+      color: #f0f0f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1, h2, h3 { font-weight: 600; }
+    .muted { color: #666; }
+
+    /* ═══════════════════════════════════════════════════════════
+       BUTTONS
+       ═══════════════════════════════════════════════════════════ */
+    .btn {
+      display: inline-block;
+      padding: 10px 22px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #fff;
+    }
+    .btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; transform: none; }
+    .btn-primary { background: linear-gradient(135deg, #e94560, #d63384); }
+    .btn-success { background: linear-gradient(135deg, #00c853, #009624); }
+    .btn-secondary { background: #3a3a5c; }
+    .btn-small { padding: 6px 16px; font-size: 13px; }
+    .btn-danger { background: linear-gradient(135deg, #ff1744, #c62828); }
+
+    /* ═══════════════════════════════════════════════════════════
+       CONNECTION STATUS BAR
+       ═══════════════════════════════════════════════════════════ */
+    #conn-bar {
+      width: 100%;
+      text-align: center;
+      padding: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    #conn-bar.connected { background: #1b5e20; color: #a5d6a7; }
+    #conn-bar.disconnected { background: #b71c1c; color: #ef9a9a; }
+    #conn-bar.connecting { background: #e65100; color: #ffcc80; }
+
+    /* ═══════════════════════════════════════════════════════════
+       LOBBY SCREEN
+       ═══════════════════════════════════════════════════════════ */
+    .screen { display: none; width: 100%; max-width: 560px; padding: 20px; }
+    .screen.active { display: block; }
+
+    .lobby-header {
+      text-align: center;
+      margin: 30px 0 20px;
+    }
+    .lobby-header h1 {
+      font-size: 36px;
+      margin-bottom: 6px;
+    }
+    .lobby-header p {
+      color: #888;
+      font-size: 14px;
+    }
+
+    .card {
+      background: #141428;
+      border: 1px solid #2a2a4a;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card h3 {
+      margin-bottom: 12px;
+      font-size: 16px;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .name-input {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .name-input input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #3a3a5c;
+      background: #1a1a3e;
+      color: #f0f0f0;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .name-input input:focus { border-color: #e94560; }
+
+    .session-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: #1a1a3e;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .session-item .session-info {
+      display: flex;
+      flex-direction: column;
+    }
+    .session-item .session-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .session-item .session-meta {
+      font-size: 12px;
+      color: #888;
+      margin-top: 2px;
+    }
+    .no-sessions {
+      text-align: center;
+      color: #555;
+      padding: 20px;
+      font-style: italic;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       GAME SCREEN
+       ═══════════════════════════════════════════════════════════ */
+    .game-header {
+      text-align: center;
+      margin: 20px 0 10px;
+      font-size: 22px;
+    }
+
+    /* Scoreboard */
+    .scoreboard {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .player-card {
+      flex: 1;
+      padding: 14px;
+      border-radius: 10px;
+      text-align: center;
+      position: relative;
+      border: 2px solid transparent;
+      transition: border-color 0.3s;
+    }
+    .player-card.p1 { background: rgba(233, 69, 96, 0.12); }
+    .player-card.p2 { background: rgba(0, 210, 255, 0.12); }
+    .player-card.me { border-color: #ffa726; }
+    .player-card.ready-yes { border-color: #00c853 !important; }
+    .player-name { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+    .player-name .you-tag {
+      font-size: 11px;
+      background: #ffa726;
+      color: #000;
+      border-radius: 4px;
+      padding: 1px 6px;
+      margin-left: 6px;
+      font-weight: 700;
+    }
+    .player-score {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 6px 0;
+    }
+    .player-card.p1 .player-score { color: #e94560; }
+    .player-card.p2 .player-score { color: #00d2ff; }
+    .player-status {
+      font-size: 12px;
+      color: #888;
+    }
+    .player-status.ready { color: #00c853; font-weight: 600; }
+
+    /* Game status */
+    .game-status-area {
+      text-align: center;
+      margin: 14px 0;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    .status-text {
+      font-size: 18px;
+      color: #ccc;
+    }
+    .countdown-num {
+      font-size: 72px;
+      font-weight: 900;
+      color: #e94560;
+      animation: pulse 0.8s ease-in-out infinite;
+      line-height: 1;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+    .timer {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .timer.warning { color: #ffa726; }
+    .timer.danger { color: #ff1744; animation: pulse 0.5s ease-in-out infinite; }
+
+    .game-controls {
+      text-align: center;
+      margin: 10px 0;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    /* Grid */
+    .grid-wrapper {
+      display: flex;
+      justify-content: center;
+      margin: 16px 0 20px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(10, 44px);
+      grid-template-rows: repeat(10, 44px);
+      gap: 2px;
+      position: relative;
+      background: #0d0d24;
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid #2a2a4a;
+    }
+    .cell {
+      width: 44px;
+      height: 44px;
+      background: #1a1a3e;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      user-select: none;
+      position: relative;
+    }
+    .cell:hover { background: #262650; transform: scale(1.08); }
+    .cell.has-item { cursor: pointer; }
+    .cell .item-emoji {
+      animation: item-appear 0.25s ease-out;
+    }
+    @keyframes item-appear {
+      0% { transform: scale(0); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       BOMB EFFECTS — Shake & Blur
+       ═══════════════════════════════════════════════════════════ */
+    .grid-wrapper.bomb-shake {
+      animation: bomb-shake 2.5s ease-out;
+    }
+    @keyframes bomb-shake {
+      0%  { transform: translate(0, 0); }
+      2%  { transform: translate(-16px, 10px); }
+      4%  { transform: translate(14px, -12px); }
+      6%  { transform: translate(-12px, -16px); }
+      8%  { transform: translate(18px, 8px); }
+      10% { transform: translate(-14px, 14px); }
+      12% { transform: translate(10px, -18px); }
+      14% { transform: translate(-18px, 6px); }
+      16% { transform: translate(12px, -10px); }
+      20% { transform: translate(-8px, 8px); }
+      25% { transform: translate(6px, -6px); }
+      30% { transform: translate(-4px, 5px); }
+      40% { transform: translate(3px, -3px); }
+      50% { transform: translate(-2px, 2px); }
+      65% { transform: translate(1px, -1px); }
+      100% { transform: translate(0, 0); }
+    }
+
+    .grid.bomb-blur .cell {
+      animation: bomb-blur-fade 2s ease-out forwards;
+    }
+    @keyframes bomb-blur-fade {
+      0%   { filter: blur(10px); }
+      100% { filter: blur(0px); }
+    }
+
+    /* Float effects (+1, -1, MISSED) */
+    .float-effect {
+      position: absolute;
+      font-weight: 900;
+      font-size: 15px;
+      pointer-events: none;
+      z-index: 20;
+      white-space: nowrap;
+      animation: float-up 0.9s ease-out forwards;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+    }
+    @keyframes float-up {
+      0%   { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -45px); }
+    }
+
+    /* Results overlay */
+    .results-overlay {
+      text-align: center;
+      padding: 24px;
+      background: #141428;
+      border-radius: 12px;
+      border: 2px solid #e94560;
+      margin-top: 10px;
+    }
+    .results-overlay h2 { font-size: 26px; margin-bottom: 10px; }
+    .results-overlay .winner {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 12px 0;
+    }
+    .results-overlay .winner.p1-win { color: #e94560; }
+    .results-overlay .winner.p2-win { color: #00d2ff; }
+    .results-overlay .winner.draw { color: #ffa726; }
+
+    /* Waiting for opponent */
+    .waiting-dots::after {
+      content: '';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+    @keyframes dots {
+      0%   { content: ''; }
+      25%  { content: '.'; }
+      50%  { content: '..'; }
+      75%  { content: '...'; }
+      100% { content: ''; }
+    }
+
+    /* Footer info */
+    .footer-info {
+      text-align: center;
+      margin-top: 20px;
+      padding: 10px;
+      font-size: 12px;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Connection status bar -->
+  <div id="conn-bar" class="connecting">CONNECTING...</div>
+
+  <!-- ══════════════════════════════════════════
+       LOBBY SCREEN
+       ══════════════════════════════════════════ -->
+  <div id="lobby-screen" class="screen active">
+    <div class="lobby-header">
+      <h1>&#127822; Apple Rush</h1>
+      <p>LAYERS Pattern Demo &mdash; Multiplayer Real-Time Game</p>
+    </div>
+
+    <div class="card">
+      <h3>Create New Game</h3>
+      <div class="name-input">
+        <input type="text" id="player-name" placeholder="Your name..." value="" maxlength="20">
+        <button class="btn btn-primary" id="btn-create">Create Game</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Open Games</h3>
+      <div id="session-list">
+        <div class="no-sessions">No open games. Create one!</div>
+      </div>
+    </div>
+
+    <div class="footer-info">
+      LAYERS pattern guarantees: with simultaneous clicks on one item &mdash; only one player gets it. Deterministic, no race conditions.
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       GAME SCREEN
+       ══════════════════════════════════════════ -->
+  <div id="game-screen" class="screen">
+    <div class="game-header">&#127822; Apple Rush</div>
+
+    <div class="scoreboard">
+      <div class="player-card p1" id="card-p1">
+        <div class="player-name" id="name-p1">Player 1</div>
+        <div class="player-score" id="score-p1">0</div>
+        <div class="player-status" id="status-p1">Not connected</div>
+      </div>
+      <div class="player-card p2" id="card-p2">
+        <div class="player-name" id="name-p2">Player 2</div>
+        <div class="player-score" id="score-p2">0</div>
+        <div class="player-status" id="status-p2">Not connected</div>
+      </div>
+    </div>
+
+    <div class="game-status-area" id="game-status-area">
+      <div class="status-text">Waiting for opponent<span class="waiting-dots"></span></div>
+    </div>
+
+    <div class="game-controls" id="game-controls">
+      <button class="btn btn-success" id="btn-ready" style="display:none">I'm Ready!</button>
+      <button class="btn btn-secondary" id="btn-leave">Back to Lobby</button>
+    </div>
+
+    <div class="grid-wrapper">
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div id="results-area"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       GAME CLIENT (JavaScript)
+       ══════════════════════════════════════════ -->
+  <script>
+    class AppleRushClient {
+      constructor() {
+        this.ws = null;
+        this.myPlayerId = null;
+        this.sessionId = null;
+        this.playerName = '';
+        this.gameState = null;
+        this.currentScreen = 'lobby';
+        this.pendingClicks = new Map(); // itemId → true
+        this._prevItems = {};           // Track previous item states for effects
+
+        this._initGrid();
+        this._bindEvents();
+        this._connect();
+        this._startListRefresh();
+      }
+
+      // ════════════════════════════════════════════════
+      //  WEBSOCKET
+      // ════════════════════════════════════════════════
+      _connect() {
+        this._setConnStatus('connecting');
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        this.ws = new WebSocket(`${protocol}//${location.host}`);
+
+        this.ws.onopen = () => {
+          this._setConnStatus('connected');
+          this.ws.send(JSON.stringify({ type: 'list_sessions' }));
+        };
+
+        this.ws.onmessage = (e) => {
+          try {
+            this._handleMessage(JSON.parse(e.data));
+          } catch (err) {
+            console.error('Parse error:', err);
+          }
+        };
+
+        this.ws.onclose = () => {
+          this._setConnStatus('disconnected');
+          // Reconnect after 2 seconds
+          setTimeout(() => this._connect(), 2000);
+        };
+
+        this.ws.onerror = () => {};
+      }
+
+      _send(data) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify(data));
+        }
+      }
+
+      _setConnStatus(status) {
+        const bar = document.getElementById('conn-bar');
+        bar.className = status;
+        const labels = {
+          connected: 'CONNECTED',
+          disconnected: 'DISCONNECTED — Reconnecting...',
+          connecting: 'CONNECTING...'
+        };
+        bar.textContent = labels[status] || status;
+      }
+
+      // ════════════════════════════════════════════════
+      //  MESSAGE HANDLER
+      // ════════════════════════════════════════════════
+      _handleMessage(msg) {
+        switch (msg.type) {
+          case 'session_list':
+            this._renderSessionList(msg.sessions);
+            break;
+
+          case 'session_created':
+            this.sessionId = msg.sessionId;
+            this.myPlayerId = msg.playerId;
+            this._showScreen('game');
+            break;
+
+          case 'session_joined':
+            this.sessionId = msg.sessionId;
+            this.myPlayerId = msg.playerId;
+            this._showScreen('game');
+            break;
+
+          case 'opponent_joined':
+            // Will be reflected in next state_update
+            break;
+
+          case 'opponent_left':
+            this._showGameStatus('<div class="status-text" style="color:#ff9800">Opponent left the game!</div>');
+            document.getElementById('btn-ready').style.display = 'none';
+            break;
+
+          case 'state_update':
+            this._handleStateUpdate(msg.state);
+            break;
+
+          case 'error':
+            alert(msg.message);
+            break;
+        }
+      }
+
+      // ════════════════════════════════════════════════
+      //  STATE UPDATE
+      // ════════════════════════════════════════════════
+      _handleStateUpdate(state) {
+        const prevState = this.gameState;
+        this.gameState = state;
+
+        // Check pending clicks for effects
+        this._checkPendingClicks(state);
+
+        // Render game UI
+        this._renderGame(state, prevState);
+      }
+
+      _checkPendingClicks(state) {
+        for (const [itemId] of this.pendingClicks) {
+          const item = state.items[itemId];
+          if (item && item.collected) {
+            if (item.collectedBy === this.myPlayerId) {
+              if (item.type === 'apple') {
+                this._showFloatEffect(item.x, item.y, '+1', '#00e676');
+              } else {
+                // Бомба! -1 очко + случайный визуальный эффект
+                this._showFloatEffect(item.x, item.y, '-1', '#ff1744');
+                this._triggerBombEffect();
+              }
+            } else {
+              this._showFloatEffect(item.x, item.y, 'MISSED!', '#ffa726');
+            }
+            this.pendingClicks.delete(itemId);
+          }
+        }
+      }
+
+      // ════════════════════════════════════════════════
+      //  UI INIT & EVENTS
+      // ════════════════════════════════════════════════
+      _initGrid() {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        for (let y = 0; y < 10; y++) {
+          for (let x = 0; x < 10; x++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.dataset.x = x;
+            cell.dataset.y = y;
+            grid.appendChild(cell);
+          }
+        }
+      }
+
+      _bindEvents() {
+        // Create game
+        document.getElementById('btn-create').addEventListener('click', () => {
+          this.playerName = document.getElementById('player-name').value.trim() || 'Player';
+          this._send({ type: 'create_session', playerName: this.playerName });
+        });
+
+        // Ready
+        document.getElementById('btn-ready').addEventListener('click', () => {
+          this._send({ type: 'ready' });
+          document.getElementById('btn-ready').disabled = true;
+        });
+
+        // Leave
+        document.getElementById('btn-leave').addEventListener('click', () => {
+          this._send({ type: 'leave_session' });
+          this.sessionId = null;
+          this.myPlayerId = null;
+          this.gameState = null;
+          this.pendingClicks.clear();
+          this._showScreen('lobby');
+          this._send({ type: 'list_sessions' });
+        });
+
+        // Grid click
+        document.getElementById('grid').addEventListener('click', (e) => {
+          const cell = e.target.closest('.cell');
+          if (!cell || !this.gameState || this.gameState.game?.phase !== 'playing') return;
+
+          const x = parseInt(cell.dataset.x);
+          const y = parseInt(cell.dataset.y);
+
+          // Find first uncollected item at this position
+          for (const item of Object.values(this.gameState.items)) {
+            if (item.x === x && item.y === y && !item.collected) {
+              this.pendingClicks.set(item.id, true);
+              this._send({ type: 'click', itemId: item.id });
+              break;
+            }
+          }
+        });
+
+        // Enter key in name input
+        document.getElementById('player-name').addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            document.getElementById('btn-create').click();
+          }
+        });
+      }
+
+      _startListRefresh() {
+        setInterval(() => {
+          if (this.currentScreen === 'lobby' && this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this._send({ type: 'list_sessions' });
+          }
+        }, 3000);
+      }
+
+      // ════════════════════════════════════════════════
+      //  SCREEN MANAGEMENT
+      // ════════════════════════════════════════════════
+      _showScreen(name) {
+        this.currentScreen = name;
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(`${name}-screen`).classList.add('active');
+
+        if (name === 'game') {
+          document.getElementById('btn-ready').style.display = 'none';
+          document.getElementById('btn-ready').disabled = false;
+          document.getElementById('results-area').innerHTML = '';
+          this._clearGrid();
+        }
+      }
+
+      // ════════════════════════════════════════════════
+      //  LOBBY RENDERING
+      // ════════════════════════════════════════════════
+      _renderSessionList(sessions) {
+        const container = document.getElementById('session-list');
+
+        if (!sessions || sessions.length === 0) {
+          container.innerHTML = '<div class="no-sessions">No open games. Create one!</div>';
+          return;
+        }
+
+        container.innerHTML = sessions.map(s => `
+          <div class="session-item">
+            <div class="session-info">
+              <span class="session-name">${this._esc(s.creatorName)}'s game</span>
+              <span class="session-meta">${s.playerCount}/2 players &bull; waiting for opponent</span>
+            </div>
+            <button class="btn btn-primary btn-small" data-join="${s.id}">Join</button>
+          </div>
+        `).join('');
+
+        // Bind join buttons
+        container.querySelectorAll('[data-join]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            this.playerName = document.getElementById('player-name').value.trim() || 'Player';
+            this._send({
+              type: 'join_session',
+              sessionId: btn.dataset.join,
+              playerName: this.playerName
+            });
+          });
+        });
+      }
+
+      // ════════════════════════════════════════════════
+      //  GAME RENDERING
+      // ════════════════════════════════════════════════
+      _renderGame(state, prevState) {
+        if (!state) return;
+
+        // — Player cards —
+        this._renderPlayerCard('p1', 'player1', state);
+        this._renderPlayerCard('p2', 'player2', state);
+
+        // — Game status — (LAYERS: фаза игры в state.game.phase)
+        const phase = state.game?.phase || 'waiting';
+        switch (phase) {
+          case 'waiting': {
+            const playerCount = Object.keys(state.players || {}).length;
+            if (playerCount < 2) {
+              this._showGameStatus('<div class="status-text">Waiting for opponent<span class="waiting-dots"></span></div>');
+              document.getElementById('btn-ready').style.display = 'none';
+            } else {
+              const myReady = state.players[this.myPlayerId]?.ready;
+              if (myReady) {
+                this._showGameStatus('<div class="status-text">Waiting for opponent to be ready<span class="waiting-dots"></span></div>');
+                document.getElementById('btn-ready').style.display = 'none';
+              } else {
+                this._showGameStatus('<div class="status-text">Both players connected! Press Ready to start.</div>');
+                document.getElementById('btn-ready').style.display = '';
+                document.getElementById('btn-ready').disabled = false;
+              }
+            }
+            break;
+          }
+
+          case 'countdown':
+            document.getElementById('btn-ready').style.display = 'none';
+            this._showGameStatus(`<div class="countdown-num">${state.game?.countdown || 0}</div>`);
+            break;
+
+          case 'playing': {
+            document.getElementById('btn-ready').style.display = 'none';
+            const gt = state.game?.gameTime ?? 30;
+            const timeClass = gt <= 5 ? 'danger' : gt <= 10 ? 'warning' : '';
+            this._showGameStatus(`<div class="timer ${timeClass}">Time: ${gt}s</div>`);
+            break;
+          }
+
+          case 'finished':
+            document.getElementById('btn-ready').style.display = 'none';
+            this._renderResults(state);
+            break;
+        }
+
+        // — Grid —
+        this._renderGrid(state);
+      }
+
+      _renderPlayerCard(cardId, playerId, state) {
+        const card = document.getElementById(`card-${cardId}`);
+        const nameEl = document.getElementById(`name-${cardId}`);
+        const scoreEl = document.getElementById(`score-${cardId}`);
+        const statusEl = document.getElementById(`status-${cardId}`);
+
+        const player = state.players[playerId];
+
+        if (!player) {
+          nameEl.innerHTML = cardId === 'p1' ? 'Player 1' : 'Player 2';
+          scoreEl.textContent = '0';
+          statusEl.textContent = 'Not connected';
+          statusEl.className = 'player-status';
+          card.classList.remove('me', 'ready-yes');
+          return;
+        }
+
+        const isMe = playerId === this.myPlayerId;
+        const youTag = isMe ? '<span class="you-tag">YOU</span>' : '';
+        nameEl.innerHTML = this._esc(player.name) + youTag;
+        scoreEl.textContent = player.score;
+
+        // Status
+        const ph = state.game?.phase || 'waiting';
+        if (ph === 'waiting' || ph === 'countdown') {
+          if (player.ready) {
+            statusEl.textContent = 'Ready!';
+            statusEl.className = 'player-status ready';
+          } else {
+            statusEl.textContent = 'Not ready';
+            statusEl.className = 'player-status';
+          }
+        } else if (ph === 'playing') {
+          statusEl.textContent = 'Playing...';
+          statusEl.className = 'player-status';
+        } else {
+          statusEl.textContent = '';
+          statusEl.className = 'player-status';
+        }
+
+        // Card styling
+        card.classList.toggle('me', isMe);
+        card.classList.toggle('ready-yes', player.ready && (ph === 'waiting' || ph === 'countdown'));
+      }
+
+      _renderGrid(state) {
+        const grid = document.getElementById('grid');
+        const cells = grid.children;
+
+        for (let i = 0; i < 100; i++) {
+          const x = i % 10;
+          const y = Math.floor(i / 10);
+          const cell = cells[i];
+
+          // Find first uncollected item at this cell
+          let itemHere = null;
+          for (const item of Object.values(state.items || {})) {
+            if (item.x === x && item.y === y && !item.collected) {
+              itemHere = item;
+              break;
+            }
+          }
+
+          const emoji = itemHere ? (itemHere.type === 'apple' ? '\u{1F34E}' : '\u{1F4A3}') : '';
+          const itemId = itemHere ? itemHere.id : '';
+
+          // Only update DOM if content changed
+          if (cell.dataset.itemId !== itemId) {
+            cell.dataset.itemId = itemId;
+            if (emoji) {
+              cell.innerHTML = `<span class="item-emoji">${emoji}</span>`;
+              cell.classList.add('has-item');
+            } else {
+              // Keep float effects, only remove item emoji
+              const existingEmoji = cell.querySelector('.item-emoji');
+              if (existingEmoji) existingEmoji.remove();
+              cell.classList.remove('has-item');
+            }
+          }
+        }
+      }
+
+      _clearGrid() {
+        const cells = document.getElementById('grid').children;
+        for (let i = 0; i < cells.length; i++) {
+          cells[i].innerHTML = '';
+          cells[i].className = 'cell';
+          cells[i].dataset.itemId = '';
+        }
+      }
+
+      _renderResults(state) {
+        const area = document.getElementById('results-area');
+        if (area.innerHTML) return; // Already rendered
+
+        const p1 = state.players.player1;
+        const p2 = state.players.player2;
+        const s1 = p1 ? p1.score : 0;
+        const s2 = p2 ? p2.score : 0;
+
+        // Статистика яблок — проверка целостности LAYERS
+        const a1 = p1?.applesCollected || 0;
+        const a2 = p2?.applesCollected || 0;
+        const totalApples = state.stats?.totalApples || 0;
+        const totalRounds = state.stats?.totalRounds || 0;
+
+        // Подсчёт несобранных яблок, оставшихся на поле при завершении
+        let uncollectedApples = 0;
+        for (const item of Object.values(state.items || {})) {
+          if (item && item.type === 'apple' && !item.collected) uncollectedApples++;
+        }
+
+        const collectedSum = a1 + a2;
+        const fullSum = collectedSum + uncollectedApples;
+        const integrityOk = fullSum === totalApples;
+
+        let winnerHtml;
+        if (s1 > s2) {
+          winnerHtml = `<div class="winner p1-win">${this._esc(p1?.name || 'Player 1')} wins!</div>`;
+        } else if (s2 > s1) {
+          winnerHtml = `<div class="winner p2-win">${this._esc(p2?.name || 'Player 2')} wins!</div>`;
+        } else {
+          winnerHtml = `<div class="winner draw">It's a draw!</div>`;
+        }
+
+        area.innerHTML = `
+          <div class="results-overlay">
+            <h2>Game Over!</h2>
+            <div style="font-size:18px; margin:8px 0;">
+              ${this._esc(p1?.name || 'P1')}: <strong style="color:#e94560">${s1}</strong>
+              &nbsp;&mdash;&nbsp;
+              ${this._esc(p2?.name || 'P2')}: <strong style="color:#00d2ff">${s2}</strong>
+            </div>
+            ${winnerHtml}
+
+            <div style="margin-top:16px; padding:12px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid #2a2a4a;">
+              <div style="font-size:13px; color:#888; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">
+                Race Integrity Check
+              </div>
+              <div style="font-size:15px; margin-bottom:8px;">
+                Apples spawned: <strong style="color:#ffa726;">${totalApples}</strong>
+                &nbsp;(${totalRounds} rounds)
+              </div>
+              <div style="font-size:14px; margin-bottom:4px;">
+                ${this._esc(p1?.name || 'P1')}: <strong style="color:#e94560">${a1}</strong>
+                &nbsp;+&nbsp;
+                ${this._esc(p2?.name || 'P2')}: <strong style="color:#00d2ff">${a2}</strong>
+                &nbsp;+&nbsp;
+                uncollected: <strong style="color:#ffa726">${uncollectedApples}</strong>
+                &nbsp;=&nbsp;
+                <strong>${fullSum}</strong>
+              </div>
+              <div style="font-size:14px; font-weight:700; margin-top:8px; color:${integrityOk ? '#00c853' : '#ff1744'};">
+                ${integrityOk
+                  ? '&#10004; ' + fullSum + ' = ' + totalApples + ' &mdash; INTEGRITY OK! Every apple accounted for. No duplicates, no losses.'
+                  : '&#10008; ' + fullSum + ' &ne; ' + totalApples + ' &mdash; INTEGRITY FAILED!'}
+              </div>
+            </div>
+          </div>
+        `;
+
+        this._showGameStatus('');
+      }
+
+      // ════════════════════════════════════════════════
+      //  EFFECTS
+      // ════════════════════════════════════════════════
+      _showFloatEffect(x, y, text, color) {
+        const grid = document.getElementById('grid');
+        const cellIndex = y * 10 + x;
+        const cell = grid.children[cellIndex];
+        if (!cell) return;
+
+        const cellRect = cell.getBoundingClientRect();
+        const gridRect = grid.getBoundingClientRect();
+
+        const el = document.createElement('div');
+        el.className = 'float-effect';
+        el.textContent = text;
+        el.style.color = color;
+        el.style.left = (cellRect.left - gridRect.left + cellRect.width / 2) + 'px';
+        el.style.top = (cellRect.top - gridRect.top) + 'px';
+        grid.appendChild(el);
+
+        setTimeout(() => el.remove(), 900);
+      }
+
+      _showGameStatus(html) {
+        document.getElementById('game-status-area').innerHTML = html;
+      }
+
+      /**
+       * Случайный визуальный эффект при подборе бомбы.
+       * 1 = тряска экрана (2.5 сек), 2 = размытие сетки (2 сек).
+       */
+      _triggerBombEffect() {
+        const effect = Math.random() < 0.5 ? 'shake' : 'blur';
+
+        if (effect === 'shake') {
+          const wrapper = document.querySelector('.grid-wrapper');
+          wrapper.classList.remove('bomb-shake');
+          // Force reflow to restart animation if already playing
+          void wrapper.offsetWidth;
+          wrapper.classList.add('bomb-shake');
+          setTimeout(() => wrapper.classList.remove('bomb-shake'), 2500);
+        } else {
+          const grid = document.getElementById('grid');
+          grid.classList.remove('bomb-blur');
+          void grid.offsetWidth;
+          grid.classList.add('bomb-blur');
+          setTimeout(() => grid.classList.remove('bomb-blur'), 2000);
+        }
+      }
+
+      // ════════════════════════════════════════════════
+      //  UTILS
+      // ════════════════════════════════════════════════
+      _esc(str) {
+        const d = document.createElement('div');
+        d.textContent = str || '';
+        return d.innerHTML;
+      }
+    }
+
+    // ═══════════════════════════════════════
+    //  START
+    // ═══════════════════════════════════════
+    const client = new AppleRushClient();
+  </script>
+</body>
+</html>

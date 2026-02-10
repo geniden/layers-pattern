@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LAYERS Debug — Snapshot History</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Consolas', 'Courier New', monospace;
+      background: #0a0a1a;
+      color: #e0e0e0;
+      padding: 20px;
+    }
+    h1 { font-size: 22px; margin-bottom: 4px; color: #fff; }
+    h2 { font-size: 16px; margin-bottom: 8px; color: #aaa; }
+    h3 { font-size: 14px; margin-bottom: 6px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+
+    .header {
+      display: flex; align-items: center; gap: 16px;
+      margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #2a2a4a;
+    }
+    .header-info { color: #888; font-size: 13px; }
+
+    .controls {
+      display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .btn {
+      padding: 6px 14px; border: 1px solid #3a3a5c; border-radius: 6px;
+      background: #1a1a3e; color: #ddd; cursor: pointer; font-size: 13px;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .btn:hover { background: #2a2a5c; border-color: #5a5a8c; }
+    .btn.active { background: #e94560; border-color: #e94560; color: #fff; }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    select {
+      padding: 6px 10px; border: 1px solid #3a3a5c; border-radius: 6px;
+      background: #1a1a3e; color: #ddd; font-size: 13px; font-family: inherit;
+    }
+
+    .layout { display: flex; gap: 16px; height: calc(100vh - 160px); }
+
+    /* Timeline panel */
+    .timeline-panel {
+      width: 320px; min-width: 280px;
+      background: #111126; border: 1px solid #2a2a4a; border-radius: 8px;
+      overflow: hidden; display: flex; flex-direction: column;
+    }
+    .timeline-header {
+      padding: 10px 12px; border-bottom: 1px solid #2a2a4a;
+      font-size: 13px; color: #888; display: flex; justify-content: space-between;
+    }
+    .timeline-list {
+      flex: 1; overflow-y: auto; padding: 4px;
+    }
+    .timeline-entry {
+      padding: 8px 10px; margin: 2px 0; border-radius: 6px;
+      cursor: pointer; font-size: 12px; transition: background 0.1s;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .timeline-entry:hover { background: #1a1a40; }
+    .timeline-entry.selected { background: #2a1a40; border-left: 3px solid #e94560; }
+    .timeline-entry .tick-num { font-weight: 700; color: #e94560; min-width: 60px; }
+    .timeline-entry .tick-layers {
+      display: flex; gap: 3px; flex-wrap: wrap; justify-content: flex-end;
+    }
+    .layer-badge {
+      font-size: 10px; padding: 1px 5px; border-radius: 3px;
+      font-weight: 600; letter-spacing: 0.3px;
+    }
+    .layer-badge.player { background: rgba(233,69,96,0.3); color: #e94560; }
+    .layer-badge.item { background: rgba(0,210,255,0.3); color: #00d2ff; }
+    .layer-badge.game-logic { background: rgba(0,200,83,0.3); color: #00c853; }
+    .layer-badge.external { background: rgba(255,167,38,0.3); color: #ffa726; }
+
+    /* Detail panel */
+    .detail-panel {
+      flex: 1; background: #111126; border: 1px solid #2a2a4a; border-radius: 8px;
+      overflow: hidden; display: flex; flex-direction: column;
+    }
+    .detail-header {
+      padding: 10px 14px; border-bottom: 1px solid #2a2a4a;
+      display: flex; gap: 12px; align-items: center;
+    }
+    .detail-tabs { display: flex; gap: 4px; }
+    .detail-tabs .btn { padding: 4px 12px; font-size: 12px; }
+    .detail-content {
+      flex: 1; overflow-y: auto; padding: 14px;
+    }
+
+    /* JSON viewer */
+    .json-viewer {
+      font-size: 12px; line-height: 1.6; white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .json-key { color: #e94560; }
+    .json-string { color: #00c853; }
+    .json-number { color: #00d2ff; }
+    .json-bool { color: #ffa726; }
+    .json-null { color: #888; }
+
+    /* Delta viewer */
+    .delta-section {
+      margin-bottom: 16px; background: #0d0d20; border-radius: 6px;
+      border: 1px solid #2a2a4a; overflow: hidden;
+    }
+    .delta-header {
+      padding: 8px 12px; font-size: 13px; font-weight: 700;
+      border-bottom: 1px solid #2a2a4a; display: flex; align-items: center; gap: 8px;
+    }
+    .delta-body { padding: 10px 12px; }
+
+    /* Grid mini-viewer */
+    .mini-grid {
+      display: inline-grid; grid-template-columns: repeat(10, 22px);
+      grid-template-rows: repeat(10, 22px); gap: 1px;
+      background: #0d0d24; padding: 3px; border-radius: 4px;
+    }
+    .mini-cell {
+      width: 22px; height: 22px; background: #1a1a3e; border-radius: 2px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+    }
+
+    /* Players mini-view */
+    .players-row {
+      display: flex; gap: 12px; margin-bottom: 12px;
+    }
+    .player-chip {
+      padding: 6px 12px; border-radius: 6px; font-size: 13px;
+      display: flex; gap: 8px; align-items: center;
+    }
+    .player-chip.p1 { background: rgba(233,69,96,0.15); border: 1px solid rgba(233,69,96,0.3); }
+    .player-chip.p2 { background: rgba(0,210,255,0.15); border: 1px solid rgba(0,210,255,0.3); }
+    .player-chip .score { font-weight: 700; font-size: 16px; }
+    .player-chip.p1 .score { color: #e94560; }
+    .player-chip.p2 .score { color: #00d2ff; }
+
+    .phase-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 4px;
+      font-size: 12px; font-weight: 700; margin-bottom: 12px;
+    }
+    .phase-badge.waiting { background: rgba(255,167,38,0.2); color: #ffa726; }
+    .phase-badge.countdown { background: rgba(233,69,96,0.2); color: #e94560; }
+    .phase-badge.playing { background: rgba(0,200,83,0.2); color: #00c853; }
+    .phase-badge.finished { background: rgba(136,136,136,0.2); color: #aaa; }
+
+    .empty-state {
+      text-align: center; padding: 60px 20px; color: #555;
+    }
+    .empty-state h2 { font-size: 18px; margin-bottom: 8px; color: #777; }
+
+    .auto-refresh { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #888; }
+    .auto-refresh input { accent-color: #e94560; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #3a3a5c; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #5a5a8c; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h1>&#128270; LAYERS Debug — Snapshot History</h1>
+      <div class="header-info">Time-Travel Debugging: просмотр состояния на любом такте</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <span style="color:#888; font-size:13px;">Session:</span>
+    <select id="session-select"><option value="">Loading...</option></select>
+    <button class="btn" id="btn-refresh" onclick="loadSessions()">Refresh</button>
+    <button class="btn" id="btn-load" onclick="loadHistory()">Load History</button>
+    <span style="color:#555;">|</span>
+    <label class="auto-refresh">
+      <input type="checkbox" id="auto-refresh" checked> Auto-refresh (2s)
+    </label>
+    <span style="flex:1"></span>
+    <span id="stats-info" style="color:#555; font-size:12px;"></span>
+  </div>
+
+  <div class="layout">
+    <!-- Timeline -->
+    <div class="timeline-panel">
+      <div class="timeline-header">
+        <span>Timeline</span>
+        <span id="entry-count">0 entries</span>
+      </div>
+      <div class="timeline-list" id="timeline-list">
+        <div class="empty-state">
+          <p>Select a session and click "Load History"</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail -->
+    <div class="detail-panel">
+      <div class="detail-header">
+        <span id="detail-title" style="font-weight:700;">Select a tick</span>
+        <span style="flex:1"></span>
+        <div class="detail-tabs">
+          <button class="btn active" onclick="setTab('visual')" id="tab-visual">Visual</button>
+          <button class="btn" onclick="setTab('deltas')" id="tab-deltas">Deltas</button>
+          <button class="btn" onclick="setTab('snapshot')" id="tab-snapshot">Full Snapshot</button>
+        </div>
+      </div>
+      <div class="detail-content" id="detail-content">
+        <div class="empty-state">
+          <h2>Snapshot Viewer</h2>
+          <p>Click on a tick in the timeline to inspect the game state</p>
+          <p style="margin-top:12px; font-size:12px; color:#444;">
+            AI-агент может использовать snapshot-историю для тестов:<br>
+            Берём реальный snapshot → подаём в layer.tick() → проверяем delta
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let history = [];
+    let selectedEntry = null;
+    let currentTab = 'visual';
+    let autoRefreshInterval = null;
+
+    // ── API ──────────────────────────────────────────────────
+    async function api(path) {
+      const res = await fetch(path);
+      return res.json();
+    }
+
+    async function loadSessions() {
+      const sessions = await api('/api/debug/sessions');
+      const select = document.getElementById('session-select');
+      const prev = select.value;
+      select.innerHTML = sessions.length === 0
+        ? '<option value="">No active sessions</option>'
+        : sessions.map(s =>
+            `<option value="${s.id}">${s.id} — ${s.creatorName} (${s.status}, tick ${s.tickCount})</option>`
+          ).join('');
+      if (prev && sessions.find(s => s.id === prev)) select.value = prev;
+    }
+
+    async function loadHistory() {
+      const sessionId = document.getElementById('session-select').value;
+      if (!sessionId) return;
+
+      const data = await api(`/api/debug/session/${sessionId}/history?last=200`);
+      history = data.entries || [];
+
+      renderTimeline();
+      document.getElementById('stats-info').textContent =
+        `${history.length} entries, ticks ${history[0]?.tick || '?'}—${history[history.length-1]?.tick || '?'}`;
+
+      // Auto-select last entry
+      if (history.length > 0) {
+        selectEntry(history[history.length - 1]);
+      }
+    }
+
+    // ── Timeline ─────────────────────────────────────────────
+    function renderTimeline() {
+      const list = document.getElementById('timeline-list');
+      document.getElementById('entry-count').textContent = `${history.length} entries`;
+
+      if (history.length === 0) {
+        list.innerHTML = '<div class="empty-state"><p>No history yet. Play the game first!</p></div>';
+        return;
+      }
+
+      list.innerHTML = history.map(entry => {
+        const layers = entry.deltas.map(d => {
+          const cls = d.layer === 'player' ? 'player'
+            : d.layer === 'item' ? 'item'
+            : d.layer === 'game-logic' ? 'game-logic'
+            : 'external';
+          return `<span class="layer-badge ${cls}">${d.layer}</span>`;
+        }).join('');
+
+        const selected = selectedEntry && selectedEntry.tick === entry.tick ? 'selected' : '';
+        return `<div class="timeline-entry ${selected}" onclick="selectEntryByTick(${entry.tick})">
+          <span class="tick-num">T${entry.tick}</span>
+          <span class="tick-layers">${layers}</span>
+        </div>`;
+      }).join('');
+
+      // Scroll to selected
+      const sel = list.querySelector('.selected');
+      if (sel) sel.scrollIntoView({ block: 'nearest' });
+    }
+
+    function selectEntryByTick(tick) {
+      const entry = history.find(e => e.tick === tick);
+      if (entry) selectEntry(entry);
+    }
+
+    function selectEntry(entry) {
+      selectedEntry = entry;
+      renderTimeline();
+      renderDetail();
+    }
+
+    // ── Detail Tabs ──────────────────────────────────────────
+    function setTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.detail-tabs .btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`tab-${tab}`).classList.add('active');
+      renderDetail();
+    }
+
+    function renderDetail() {
+      if (!selectedEntry) return;
+      const content = document.getElementById('detail-content');
+      document.getElementById('detail-title').textContent = `Tick ${selectedEntry.tick}`;
+
+      switch (currentTab) {
+        case 'visual': content.innerHTML = renderVisual(selectedEntry); break;
+        case 'deltas': content.innerHTML = renderDeltas(selectedEntry); break;
+        case 'snapshot': content.innerHTML = renderSnapshot(selectedEntry); break;
+      }
+    }
+
+    // ── Visual Tab ───────────────────────────────────────────
+    function renderVisual(entry) {
+      const snap = entry.snapshotAfter;
+      if (!snap) return '<p>No snapshot data</p>';
+
+      let html = '';
+
+      // Phase badge
+      const phase = snap.game?.phase || 'unknown';
+      html += `<div class="phase-badge ${phase}">${phase.toUpperCase()}`;
+      if (phase === 'countdown') html += ` — ${snap.game?.countdown}`;
+      if (phase === 'playing') html += ` — ${snap.game?.gameTime}s left`;
+      html += `</div>`;
+
+      // Players
+      const pIds = Object.keys(snap.players || {});
+      if (pIds.length > 0) {
+        html += '<div class="players-row">';
+        for (let i = 0; i < pIds.length; i++) {
+          const p = snap.players[pIds[i]];
+          const cls = i === 0 ? 'p1' : 'p2';
+          html += `<div class="player-chip ${cls}">
+            <span>${esc(p.name)}</span>
+            <span class="score">${p.score}</span>
+            <span style="font-size:11px; color:#888;">${p.ready ? 'ready' : 'not ready'}</span>
+          </div>`;
+        }
+        html += '</div>';
+      }
+
+      // Mini grid
+      html += '<div style="margin-bottom:12px;"><h3>Game Field</h3><div class="mini-grid">';
+      for (let y = 0; y < 10; y++) {
+        for (let x = 0; x < 10; x++) {
+          let emoji = '';
+          for (const item of Object.values(snap.items || {})) {
+            if (item && item.x === x && item.y === y && !item.collected) {
+              emoji = item.type === 'apple' ? '&#127822;' : '&#128163;';
+              break;
+            }
+          }
+          html += `<div class="mini-cell">${emoji}</div>`;
+        }
+      }
+      html += '</div></div>';
+
+      // Deltas summary
+      html += '<h3>Deltas this tick</h3>';
+      for (const d of entry.deltas) {
+        const cls = d.layer === 'player' ? 'player'
+          : d.layer === 'item' ? 'item'
+          : d.layer === 'game-logic' ? 'game-logic' : 'external';
+        const keys = Object.keys(d.delta);
+        html += `<span class="layer-badge ${cls}" style="margin-right:6px;">${d.layer}</span>
+                 <span style="font-size:12px; color:#666;">changed: ${keys.join(', ')}</span><br>`;
+      }
+
+      return html;
+    }
+
+    // ── Deltas Tab ───────────────────────────────────────────
+    function renderDeltas(entry) {
+      let html = '';
+      for (const d of entry.deltas) {
+        const cls = d.layer === 'player' ? 'player'
+          : d.layer === 'item' ? 'item'
+          : d.layer === 'game-logic' ? 'game-logic' : 'external';
+        html += `<div class="delta-section">
+          <div class="delta-header">
+            <span class="layer-badge ${cls}">${d.layer}</span>
+            <span style="color:#888; font-size:12px;">Delta</span>
+          </div>
+          <div class="delta-body"><div class="json-viewer">${syntaxHighlight(d.delta)}</div></div>
+        </div>`;
+      }
+      return html || '<p style="color:#666">No deltas</p>';
+    }
+
+    // ── Snapshot Tab ─────────────────────────────────────────
+    function renderSnapshot(entry) {
+      if (!entry.snapshotAfter) return '<p>No snapshot</p>';
+      return `<div class="json-viewer">${syntaxHighlight(entry.snapshotAfter)}</div>
+        <div style="margin-top:16px; padding:12px; background:#0d0d20; border-radius:6px; border:1px solid #2a2a4a;">
+          <h3 style="margin-bottom:8px;">&#129302; Для AI-агента: как использовать этот snapshot</h3>
+          <div style="font-size:12px; color:#888; line-height:1.7;">
+            <code style="color:#e94560;">const snapshot = /* этот JSON */;</code><br>
+            <code style="color:#e94560;">const layer = new ItemLayer();</code><br>
+            <code style="color:#e94560;">layer.queueAction({ type: 'collect', playerId: 'player1', itemId: 'item_0' });</code><br>
+            <code style="color:#e94560;">const delta = layer.tick(snapshot, ${entry.tick + 1});</code><br>
+            <code style="color:#00c853;">// delta содержит предсказуемый результат</code>
+          </div>
+        </div>`;
+    }
+
+    // ── JSON Syntax Highlighting ─────────────────────────────
+    function syntaxHighlight(obj) {
+      const json = JSON.stringify(obj, null, 2);
+      return json.replace(/(".*?")(\s*:\s*)?|(\b\d+\.?\d*\b)|(true|false)|(null)/g,
+        (match, key, colon, num, bool, nul) => {
+          if (key && colon) return `<span class="json-key">${key}</span>${colon}`;
+          if (key) return `<span class="json-string">${key}</span>`;
+          if (num) return `<span class="json-number">${num}</span>`;
+          if (bool) return `<span class="json-bool">${bool}</span>`;
+          if (nul) return `<span class="json-null">${nul}</span>`;
+          return match;
+        });
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
+    }
+
+    // ── Auto-refresh ─────────────────────────────────────────
+    function startAutoRefresh() {
+      stopAutoRefresh();
+      autoRefreshInterval = setInterval(() => {
+        if (document.getElementById('auto-refresh').checked) {
+          const sessionId = document.getElementById('session-select').value;
+          if (sessionId) loadHistory();
+        }
+      }, 2000);
+    }
+
+    function stopAutoRefresh() {
+      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    }
+
+    // ── Keyboard navigation ──────────────────────────────────
+    document.addEventListener('keydown', (e) => {
+      if (!selectedEntry || history.length === 0) return;
+      const idx = history.findIndex(h => h.tick === selectedEntry.tick);
+      if (e.key === 'ArrowUp' && idx > 0) {
+        e.preventDefault();
+        selectEntry(history[idx - 1]);
+      }
+      if (e.key === 'ArrowDown' && idx < history.length - 1) {
+        e.preventDefault();
+        selectEntry(history[idx + 1]);
+      }
+    });
+
+    // ── Init ─────────────────────────────────────────────────
+    loadSessions();
+    startAutoRefresh();
+  </script>
+</body>
+</html>
